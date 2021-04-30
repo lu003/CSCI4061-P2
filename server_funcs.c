@@ -18,7 +18,7 @@ void server_start(server_t *server, char *server_name, int perms){
     strncpy(server->server_name,server_name,sizeof(server_name)+1);
     remove(server_name);
     mkfifo(server_name,perms);
-    server->join_fd = open(server_name, O_RDWR);
+    server->join_fd = open(server_name, O_RDONLY);
 }
 // Initializes and starts the server with the given name. A join fifo
 // called "server_name.fifo" should be created. Removes any existing
@@ -132,7 +132,7 @@ void server_check_sources(server_t *server){
         pfds[i].fd = server ->client[i].to_server_fd;
         pfds[i].events = POLLIN;
     }
-    poll(pfds, server->n_clients+1, 0);
+    poll(pfds, server->n_clients+1, -1);
 
     if(pfds[0].revents && POLLIN){
         server-> join_ready = 1;
@@ -172,9 +172,13 @@ int server_join_ready(server_t *server){
 void server_handle_join(server_t *server){
     if(server_join_ready(server) == 1){
         join_t join = {};
+        mesg_t mesg = {};
+        mesg.kind = 20;
+        strcpy(mesg.name,join.name);
+        strcpy(mesg.body,strcat(join.name," has joined."));
         read(server->join_fd, &join, sizeof(join_t));
         server_add_client(server, &join);
-        server_broadcast(server,join.name);
+        server_broadcast(server,&mesg);
         server->join_ready = 0;
     }
 }

@@ -9,15 +9,15 @@
 // }
 
 int main (int argc, char* argv[]){
-    if(argc == 0){
-        return;
+    if(argc < 2){
+        return -1;
     }
 
     server_t server = {};
-    server_start(&server,argv[1],O_RDONLY | O_WRONLY);
+    server_start(&server,argv[1],S_IRUSR | S_IWUSR);
      while(1){
 
-        server_check_sources(&server);
+        //server_check_sources(&server);
 
         if (server_join_ready(&server)){
             server_handle_join(&server);
