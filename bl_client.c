@@ -49,9 +49,9 @@ void *user_worker(void *arg){
       msg.kind = 10;
       strcpy(msg.name,client->name);
       strcpy(msg.body,simpio->buf);
-      
-      write(client->to_server_fd,simpio->buf,sizeof(simpio->buf)+1);
-      iprintf(simpio, "%2d You entered: %s\n",count,simpio->buf);
+
+      write(client->to_server_fd,&msg,sizeof(mesg_t));
+      iprintf(simpio, "%2d You entered: %s\n",count,msg.body);
       count++;
     }
   }
@@ -77,7 +77,7 @@ void *background_worker(void *arg){
     if(mesg.kind == 40){
       break;
     }
-    iprintf(simpio, "%s: %s\n",client->name,mesg.body);
+    iprintf(simpio, "%s: %s\n",mesg.name,mesg.body);
   }
   pthread_cancel(user_thread);
   return NULL;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]){
   strcpy(joinReq.to_server_fname,client->to_server_fname); 
   strcpy(joinReq.to_client_fname,client->to_client_fname);
 
-  int joinFd = open(argv[1], S_IRUSR | S_IWUSR);
+  int joinFd = open(argv[1], O_WRONLY);
   write(joinFd, &joinReq, sizeof(join_t));
 
 

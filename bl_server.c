@@ -17,14 +17,14 @@ int main (int argc, char* argv[]){
     server_start(&server,argv[1],S_IRUSR | S_IWUSR);
      while(1){
 
-        //server_check_sources(&server);
+        server_check_sources(&server);
 
-        if (server_join_ready(&server)){
+        if (server_join_ready(&server) == 1){
             server_handle_join(&server);
         }
 
         for(int i = 0; i < server.n_clients; i++){
-            if(server_client_ready(&server, i)){
+            if(server_client_ready(&server, i) == 1){
                 server_handle_client(&server, i);
             }
         }

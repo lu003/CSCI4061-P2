@@ -15,10 +15,10 @@ client_t *server_get_client(server_t *server, int idx){
 //concat fifo at end
 void server_start(server_t *server, char *server_name, int perms){
 
-    strncpy(server->server_name,server_name,sizeof(server_name)+1);
+    strcpy(server->server_name,server_name);
     remove(server_name);
     mkfifo(server_name,perms);
-    server->join_fd = open(server_name, O_RDONLY);
+    server->join_fd = open(server_name, O_RDWR);
 }
 // Initializes and starts the server with the given name. A join fifo
 // called "server_name.fifo" should be created. Removes any existing
@@ -114,7 +114,7 @@ int server_remove_client(server_t *server, int idx){
 
 void server_broadcast(server_t *server, mesg_t *mesg){
     for(int i=0;i<server->n_clients;i++){
-        write(server->client[i].to_client_fd,mesg,sizeof(mesg));
+        write(server->client[i].to_client_fd,mesg,sizeof(mesg_t));
     }
 }
 // Send the given message to all clients connected to the server by
@@ -174,9 +174,9 @@ void server_handle_join(server_t *server){
         join_t join = {};
         mesg_t mesg = {};
         mesg.kind = 20;
+        read(server->join_fd, &join, sizeof(join_t));   
         strcpy(mesg.name,join.name);
         strcpy(mesg.body,strcat(join.name," has joined."));
-        read(server->join_fd, &join, sizeof(join_t));
         server_add_client(server, &join);
         server_broadcast(server,&mesg);
         server->join_ready = 0;
