@@ -14,11 +14,12 @@ client_t *server_get_client(server_t *server, int idx){
 
 //concat fifo at end
 void server_start(server_t *server, char *server_name, int perms){
-
+    log_printf("BEGIN: server_start()\n");
     strcpy(server->server_name,server_name);
     remove(server_name);
     mkfifo(server_name,perms);
     server->join_fd = open(server_name, O_RDWR);
+    log_printf("END: server_start()\n");                // at end of function
 }
 // Initializes and starts the server with the given name. A join fifo
 // called "server_name.fifo" should be created. Removes any existing
@@ -32,13 +33,14 @@ void server_start(server_t *server, char *server_name, int perms){
 // control access to the who_t portion of the log.
 // 
 // LOG Messages:
-// log_printf("BEGIN: server_start()\n");              // at beginning of function
+//  log_printf("BEGIN: server_start()\n");              // at beginning of function
 // log_printf("END: server_start()\n");                // at end of function
 
 void server_shutdown(server_t *server){
-    
+    log_printf("BEGIN: server_shutdown()\n");           // at beginning of function
     mesg_t new_msg = {}; 
     new_msg.kind = BL_SHUTDOWN;
+    strcpy(new_msg.body,"!!! server is shutting down !!!");
     server_broadcast(server,&new_msg);
 
     close(server->join_fd);
@@ -47,8 +49,7 @@ void server_shutdown(server_t *server){
     for(int i=0;i<clients;i++){
         server_remove_client(server,i);
     }
-
-
+    log_printf("END: server_shutdown()\n");             // at end of function
 }
 // Shut down the server. Close the join FIFO and unlink (remove) it so
 // that no further clients can join. Send a BL_SHUTDOWN message to all
@@ -66,19 +67,20 @@ int server_add_client(server_t *server, join_t *join){
     if(server->n_clients == MAXCLIENTS){
         return 1;
     }
-
+    log_printf("BEGIN: server_add_client()\n");         // at beginning of function
     client_t newClient = {};
-    strncpy(newClient.name,join->name,sizeof(join->name)+1);
-    strncpy(newClient.to_server_fname,join->to_server_fname,sizeof(join->name)+1);
-    strncpy(newClient.to_client_fname,join->to_client_fname,sizeof(join->name)+1);
+    strcpy(newClient.name,join->name);
+    strcpy(newClient.to_server_fname,join->to_server_fname);
+    strcpy(newClient.to_client_fname,join->to_client_fname);
     newClient.data_ready = 0;
 
-    mkfifo(newClient.to_client_fname,0666);
-    mkfifo(newClient.to_server_fname,0666);
+    mkfifo(newClient.to_client_fname,S_IRUSR | S_IWUSR);
+    mkfifo(newClient.to_server_fname,S_IRUSR | S_IWUSR);
     newClient.to_server_fd = open(newClient.to_server_fname, O_RDWR);
     newClient.to_client_fd = open(newClient.to_client_fname, O_RDWR);
     server -> client[server->n_clients] = newClient;
     server -> n_clients ++;
+    log_printf("END: server_add_client()\n");           // at end of function
     return 0;
 }
 
@@ -98,6 +100,10 @@ int server_remove_client(server_t *server, int idx){
     if(remove(server->client[idx].to_client_fname) == -1){
         return 1;
     }
+
+    if(remove(server->client[idx].to_server_fname) == -1){
+        return 1;
+    }
     int client = server->n_clients;
     for(int i=idx;i<client-1;i++){
         server->client[i] = server->client[i+1];
@@ -114,6 +120,9 @@ int server_remove_client(server_t *server, int idx){
 
 void server_broadcast(server_t *server, mesg_t *mesg){
     for(int i=0;i<server->n_clients;i++){
+        if(strcmp(server->client[i].name,mesg->name) == 0){
+            continue;
+        }
         write(server->client[i].to_client_fd,mesg,sizeof(mesg_t));
     }
 }
@@ -124,25 +133,32 @@ void server_broadcast(server_t *server, mesg_t *mesg){
 // should not be written to the log.
 
 void server_check_sources(server_t *server){
+    log_printf("BEGIN: server_check_sources()\n");             // at beginning of function
     struct pollfd pfds[server->n_clients+1];
     pfds[0].fd = server-> join_fd;
     pfds[0].events = POLLIN;
 
-    for(int i = 1; i < server->n_clients; i++){
-        pfds[i].fd = server ->client[i].to_server_fd;
+    for(int i = 1; i < server->n_clients+1; i++){
+        pfds[i].fd = server ->client[i-1].to_server_fd;
         pfds[i].events = POLLIN;
     }
-    poll(pfds, server->n_clients+1, -1);
+    log_printf("poll()'ing to check %d input sources\n", server->n_clients+1);  // prior to poll() call
+    int ret = poll(pfds, server->n_clients+1, -1);
+    log_printf("poll() completed with return value %d\n", ret); // after poll() call
 
     if(pfds[0].revents && POLLIN){
+        log_printf("join_ready = %d\n", 1);                       // whether join queue has data
         server-> join_ready = 1;
     }
 
-    for(int j = 1; j < server->n_clients; j++){
-        if(pfds[j].revents && POLLIN){
-            server->client[j].data_ready =1;
+
+    for(int j = 0; j < server->n_clients; j++){
+        if(pfds[j+1].revents && POLLIN){
+            log_printf("client %d '%s' data_ready = %d\n",j,server->client[j].name,1);         // whether client has data ready
+            server->client[j].data_ready = 1;
         }
     }
+    log_printf("END: server_check_sources()\n");               // at end of function
 }
 // Checks all sources of data for the server to determine if any are
 // ready for reading. Sets the servers join_ready flag and the
@@ -171,15 +187,19 @@ int server_join_ready(server_t *server){
 
 void server_handle_join(server_t *server){
     if(server_join_ready(server) == 1){
+        log_printf("BEGIN: server_handle_join()\n");               // at beginnning of function
         join_t join = {};
         mesg_t mesg = {};
         mesg.kind = 20;
-        read(server->join_fd, &join, sizeof(join_t));   
+        read(server->join_fd, &join, sizeof(join_t));
+        log_printf("join request for new client '%s'\n", join.name);      // reports name of new client   
         strcpy(mesg.name,join.name);
-        strcpy(mesg.body,strcat(join.name," has joined."));
+        strcat(mesg.body,"-- ");
+        strcat(mesg.body,strcat(join.name," JOINED --"));
         server_add_client(server, &join);
         server_broadcast(server,&mesg);
         server->join_ready = 0;
+        log_printf("END: server_handle_join()\n");                 // at end of function
     }
 }
 // Call this function only if server_join_ready() returns true. Read a
@@ -199,12 +219,18 @@ int server_client_ready(server_t *server, int idx){
 
 void server_handle_client(server_t *server, int idx){
     if(server_client_ready(server,idx) == 1){
+        log_printf("BEGIN: server_handle_client()\n");           // at beginning of function
         mesg_t buf;
         read(server->client[idx].to_server_fd, &buf, sizeof(mesg_t));
-        if(buf.kind == 10 || buf.kind == 30){
+        if(buf.kind == 10){
+            log_printf("client %d '%s' MESSAGE '%s'\n", idx, buf.name, buf.body);              // indicates client message
             server_broadcast(server,&buf);
+        }else if(buf.kind == 30){
+            server_remove_client(server,idx);
+            log_printf("client %d '%s' DEPARTED\n", idx, buf.name);              // indicates client message
         }
         server->client[idx].data_ready = 0;
+        log_printf("END: server_handle_client()\n");             // at end of function 
     }
 }
 // Process a message from the specified client. This function should
