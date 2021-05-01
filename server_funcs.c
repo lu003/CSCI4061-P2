@@ -96,12 +96,14 @@ int server_add_client(server_t *server, join_t *join){
 // log_printf("END: server_add_client()\n");           // at end of function
 
 int server_remove_client(server_t *server, int idx){
+
+    client_t *temp = server_get_client(server,idx);
     
-    if(remove(server->client[idx].to_client_fname) == -1){
+    if(remove(temp->to_client_fname) == -1){
         return 1;
     }
 
-    if(remove(server->client[idx].to_server_fname) == -1){
+    if(remove(temp->to_server_fname) == -1){
         return 1;
     }
     int client = server->n_clients;
@@ -120,9 +122,6 @@ int server_remove_client(server_t *server, int idx){
 
 void server_broadcast(server_t *server, mesg_t *mesg){
     for(int i=0;i<server->n_clients;i++){
-        if(strcmp(server->client[i].name,mesg->name) == 0){
-            continue;
-        }
         write(server->client[i].to_client_fd,mesg,sizeof(mesg_t));
     }
 }
@@ -226,6 +225,7 @@ void server_handle_client(server_t *server, int idx){
             log_printf("client %d '%s' MESSAGE '%s'\n", idx, buf.name, buf.body);              // indicates client message
             server_broadcast(server,&buf);
         }else if(buf.kind == 30){
+            server_broadcast(server,&buf);
             server_remove_client(server,idx);
             log_printf("client %d '%s' DEPARTED\n", idx, buf.name);              // indicates client message
         }
