@@ -32,9 +32,9 @@ LOG: BEGIN: server_shutdown()
 LOG: END: server_shutdown()
 
 <testy> OUTPUT for bruce
-End of Input, Departing
 -- Bruce JOINED --
 !!! server is shutting down !!!
+End of Input, Departing
 Bruce>> 
 
 

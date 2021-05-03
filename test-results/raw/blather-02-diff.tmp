@@ -48,10 +48,9 @@ LOG: BEGIN: server_shutdown()                LOG: BEGIN: server_shutdown()
 LOG: END: server_shutdown()                  LOG: END: server_shutdown()
 
 <testy> OUTPUT for bruce                     <testy> OUTPUT for bruce
--- Bruce JOINED --                         <
-End of Input, Departing                      End of Input, Departing
-                                           > -- Bruce JOINED --
+-- Bruce JOINED --                           -- Bruce JOINED --
                                            > !!! server is shutting down !!!
+End of Input, Departing                      End of Input, Departing
 Bruce>>                                      Bruce>> 
                                            )
                                            )
@@ -67,6 +66,4 @@ EXPECT:  33) LOG: client 0 'Bruce' DEPARTED
 EXPECT:  34) LOG: END: server_handle_client()
 EXPECT:  35) LOG: BEGIN: server_check_sources()
 EXPECT:  36) LOG: poll()'ing to check 1 input sources
-EXPECT:  44) -- Bruce JOINED --
-ACTUAL:  36) -- Bruce JOINED --
-ACTUAL:  37) !!! server is shutting down !!!
+ACTUAL:  36) !!! server is shutting down !!!

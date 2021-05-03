@@ -58,7 +58,7 @@ void *user_worker(void *arg){
   mesg_t depart = {};
   strcpy(depart.name,client->name);
   depart.kind = 30;
-  write(client->to_server_fd,&depart,sizeof(mesg_t)); 
+  write(client->to_server_fd,&depart,sizeof(mesg_t));
   pthread_cancel(background_thread); // kill the background thread
   return NULL;
 }
@@ -76,7 +76,7 @@ void *background_worker(void *arg){
     read(client->to_client_fd,&mesg,sizeof(mesg_t));
     if(mesg.kind == 40){
     	iprintf(simpio, "!!! server is shutting down !!!\n");
-    	return NULL;
+    	break;
     }else if(mesg.kind == 20){
     	iprintf(simpio, "%s\n",mesg.body);
     }else if(mesg.kind == 30){

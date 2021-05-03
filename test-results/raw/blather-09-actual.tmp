@@ -1,0 +1,2 @@
+>> START server ./bl_server gotham
+>> START bruce ./bl_client gotham Bruce
