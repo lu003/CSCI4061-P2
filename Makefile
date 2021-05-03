@@ -23,4 +23,6 @@ simpio.o : simpio.c blather.h
 clean :
 		@echo Cleaning up object files
 		rm -f *.o bl_server bl_client
-#nclude test_Makefile		# add at the END of Makefile
+
+
+include test_Makefile		# add at the END of Makefile

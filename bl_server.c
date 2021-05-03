@@ -2,10 +2,10 @@
 
 
 server_t server = {};
+int interrupted = 0;
 
 void handler(int sig_num){
-     server_shutdown(&server);
-     exit(0);
+    interrupted = 1;
 }
 
 // REPEAT:
@@ -23,9 +23,11 @@ int main (int argc, char* argv[]){
 
     server_start(&server,argv[1],S_IRUSR | S_IWUSR);
     struct sigaction my_sa = {.sa_handler = handler};
+
     sigaction(SIGINT, &my_sa, NULL);
+    sigaction(SIGTERM, &my_sa, NULL);
     
-     while(1){
+    while(interrupted == 0){
 
         server_check_sources(&server);
 
@@ -40,4 +42,6 @@ int main (int argc, char* argv[]){
         }
 
      }
+     server_shutdown(&server);
+     exit(0);
 }

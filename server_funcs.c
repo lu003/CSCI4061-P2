@@ -73,9 +73,6 @@ int server_add_client(server_t *server, join_t *join){
     strcpy(newClient.to_server_fname,join->to_server_fname);
     strcpy(newClient.to_client_fname,join->to_client_fname);
     newClient.data_ready = 0;
-
-    mkfifo(newClient.to_client_fname,S_IRUSR | S_IWUSR);
-    mkfifo(newClient.to_server_fname,S_IRUSR | S_IWUSR);
     newClient.to_server_fd = open(newClient.to_server_fname, O_RDWR);
     newClient.to_client_fd = open(newClient.to_client_fname, O_RDWR);
     server -> client[server->n_clients] = newClient;
@@ -131,11 +128,20 @@ void server_broadcast(server_t *server, mesg_t *mesg){
 // ADVANCED: Log the broadcast message unless it is a PING which
 // should not be written to the log.
 
+
+
+
 void server_check_sources(server_t *server){
     log_printf("BEGIN: server_check_sources()\n");             // at beginning of function
+
     struct pollfd pfds[server->n_clients+1];
     pfds[0].fd = server-> join_fd;
     pfds[0].events = POLLIN;
+    pfds[0].revents = 0;
+
+    for(int i=1;i<=server->n_clients;i++){
+        pfds[i].revents = 0;
+    }
 
     for(int i = 1; i < server->n_clients+1; i++){
         pfds[i].fd = server ->client[i-1].to_server_fd;
@@ -144,6 +150,9 @@ void server_check_sources(server_t *server){
     log_printf("poll()'ing to check %d input sources\n", server->n_clients+1);  // prior to poll() call
     int ret = poll(pfds, server->n_clients+1, -1);
     log_printf("poll() completed with return value %d\n", ret); // after poll() call
+    if(ret == -1){
+        log_printf("poll() interrupted by a signal\n"); // after poll() call   
+    }
 
     if(pfds[0].revents && POLLIN){
         log_printf("join_ready = %d\n", 1);                       // whether join queue has data
@@ -158,6 +167,7 @@ void server_check_sources(server_t *server){
         }
     }
     log_printf("END: server_check_sources()\n");               // at end of function
+
 }
 // Checks all sources of data for the server to determine if any are
 // ready for reading. Sets the servers join_ready flag and the
@@ -192,10 +202,10 @@ void server_handle_join(server_t *server){
         mesg.kind = 20;
         read(server->join_fd, &join, sizeof(join_t));
         log_printf("join request for new client '%s'\n", join.name);      // reports name of new client   
+        server_add_client(server, &join);
         strcpy(mesg.name,join.name);
         strcat(mesg.body,"-- ");
         strcat(mesg.body,strcat(join.name," JOINED --"));
-        server_add_client(server, &join);
         server_broadcast(server,&mesg);
         server->join_ready = 0;
         log_printf("END: server_handle_join()\n");                 // at end of function

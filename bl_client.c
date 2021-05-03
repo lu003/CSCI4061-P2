@@ -58,8 +58,8 @@ void *user_worker(void *arg){
   mesg_t depart = {};
   strcpy(depart.name,client->name);
   depart.kind = 30;
-  pthread_cancel(background_thread); // kill the background thread
   write(client->to_server_fd,&depart,sizeof(mesg_t)); 
+  pthread_cancel(background_thread); // kill the background thread
   return NULL;
 }
 
